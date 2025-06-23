@@ -1,0 +1,20 @@
+{% extends 'eatifybase.html' %}
+{% block content %}
+<h3>Add New Address</h3>
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label>Address Line</label>
+        <textarea name="address_line" class="form-control" required></textarea>
+    </div>
+    <div class="mb-3">
+        <label>City</label>
+        <input type="text" name="city" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Pincode</label>
+        <input type="text" name="pincode" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Save Address</button>
+</form>
+{% endblock %}

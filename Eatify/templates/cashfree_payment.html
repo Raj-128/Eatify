@@ -1,0 +1,33 @@
+{% extends 'eatifybase.html' %}
+{% block title %}Redirecting to Payment...{% endblock %}
+
+{% block content %}
+<div class="container text-center my-5">
+    <h3>Please wait while we redirect you to payment...</h3>
+    <p>🔐 Secure payment via Cashfree</p>
+
+    <form id="paymentForm" method="POST" action="{{ payment_data.gateway_url }}">
+        <input type="hidden" name="appId" value="{{ payment_data.app_id }}">
+        <input type="hidden" name="orderId" value="{{ payment_data.order_id }}">
+        <input type="hidden" name="orderAmount" value="{{ payment_data.order_amount }}">
+        <input type="hidden" name="orderCurrency" value="INR">
+
+        <input type="hidden" name="customerName" value="{{ payment_data.customer_name }}">
+        <input type="hidden" name="customerEmail" value="{{ payment_data.customer_email }}">
+        <input type="hidden" name="customerPhone" value="{{ payment_data.customer_phone }}">
+
+        <input type="hidden" name="returnUrl" value="{{ payment_data.return_url }}">
+        <input type="hidden" name="notifyUrl" value="{{ payment_data.return_url }}">
+        <input type="hidden" name="signature" value="{{ payment_data.signature }}">
+
+        <button class="btn btn-primary mt-4" type="submit">Proceed to Pay 💳</button>
+    </form>
+</div>
+
+<script>
+    // Auto-submit form after short delay
+    setTimeout(function() {
+        document.getElementById("paymentForm").submit();
+    }, 1500);
+</script>
+{% endblock %}

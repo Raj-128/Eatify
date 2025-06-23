@@ -1,0 +1,22 @@
+# Ignore environment file
+.env
+
+# Python
+*.pyc
+__pycache__/
+
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
+
+# Virtual env
+env/
+venv/
+
+# SQLite DB (optional)
+*.sqlite3
+
+# Media files (optional)
+media/

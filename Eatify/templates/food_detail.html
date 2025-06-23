@@ -1,0 +1,21 @@
+{% extends 'eatifybase.html' %}
+
+{% block title %}{{ food.food_name }} | Eatify{% endblock %}
+
+{% block content %}
+<a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mb-3">← Back</a>
+<div class="row">
+    <div class="col-md-6">
+        <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.images.first.food_image.url }}">
+    </div>
+    <div class="col-md-6">
+        <h2>{{ food.food_name }}</h2>
+        <p>{{ food.food_description }}</p>
+        <h4>Price: ₹{{ food.food_price }} <del class="text-muted">₹{{ food.food_demo_price }}</del></h4>
+        <form action="{% url 'add_to_cart' food.uid %}" method="post">
+            {% csrf_token %}
+            <button class="btn btn-success mt-3">Add to Cart 🛒</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

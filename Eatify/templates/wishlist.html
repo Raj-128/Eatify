@@ -1,0 +1,37 @@
+{% extends 'eatifybase.html' %}
+{% load static %}
+
+{% block title %}My Wishlist | Eatify{% endblock %}
+
+{% block content %}
+<h3>💖 Your Wishlist</h3>
+
+{% if wishlist_items %}
+    <div class="row">
+        {% for item in wishlist_items %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if item.food.images.all %}
+                    <img src="{{ item.food.images.first.food_image.url }}" class="card-img-top" alt="{{ item.food.food_name }}">
+                {% else %}
+                    <img src="{% static 'default-food.jpg' %}" class="card-img-top" alt="No image">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.food.food_name }}</h5>
+                    <p class="card-text">{{ item.food.food_description|truncatechars:80 }}</p>
+                    <p class="fw-bold">₹{{ item.food.food_price }}</p>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'add_to_cart' item.food.uid %}" class="btn btn-sm btn-success">Add to Cart</a>
+                        <a href="{% url 'remove_from_wishlist' item.food.uid %}" class="btn btn-sm btn-danger">Remove</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>You have no items in your wishlist.</p>
+{% endif %}
+
+<a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mt-4">← Continue Shopping</a>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'eatifybase.html' %}
+{% load custom_filters %}
+
+{% block title %}My Cart | Eatify{% endblock %}
+
+{% block content %}
+<h3>🛒 Your Cart</h3>
+<a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mb-3">← Continue Shopping</a>
+
+{% if cart_items %}
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Dish</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Subtotal</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+                <tr>
+                    <td>{{ item.food.food_name }}</td>
+                    <td>
+                        <a href="{% url 'decrease_cart' item.food.uid %}" class="btn btn-sm btn-outline-danger">−</a>
+                        <span class="mx-2">{{ item.quantity }}</span>
+                        <a href="{% url 'increase_cart' item.food.uid %}" class="btn btn-sm btn-outline-success">+</a>
+                    </td>
+                    <td>₹{{ item.food.food_price }}</td>
+                    <td>₹{{ item.food.food_price|multiply:item.quantity }}</td>
+                    <td>
+                        <a href="{% url 'remove_from_cart' item.food.food_slug %}" class="btn btn-sm btn-danger">Remove</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h5 class="text-end me-2">Total: ₹{{ total }}</h5>
+    <div class="d-flex justify-content-end">
+        <a href="{% url 'checkout' %}" class="btn btn-primary">Proceed to Checkout</a>
+    </div>
+{% else %}
+    <p>No items in cart.</p>
+{% endif %}
+{% endblock %}

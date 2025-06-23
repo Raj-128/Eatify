@@ -1,0 +1,55 @@
+{% extends 'eatifybase.html' %}
+{% load custom_filters %}
+
+{% block title %}Checkout | Eatify{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h3 class="mb-4 text-center">🧾 Checkout Summary</h3>
+
+    {% if cart_items %}
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8 col-sm-12">
+            <ul class="list-group mb-4">
+                {% for item in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ item.food.food_name }}</strong><br>
+                            <small>x{{ item.quantity }} × ₹{{ item.food.food_price }}</small>
+                        </div>
+                        <span class="fw-bold">₹{{ item.food.food_price|multiply:item.quantity }}</span>
+                    </li>
+                {% endfor %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <strong>Total</strong>
+                    <strong>₹{{ total }}</strong>
+                </li>
+            </ul>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="address">Select Address</label>
+                    <select name="address_id" id="address" class="form-control" required>
+                        {% for address in addresses %}
+                            <option value="{{ address.uid }}">{{ address.address_line }}, {{ address.city }} - {{ address.pincode }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="phone">Enter Phone Number</label>
+                    <input type="text" name="phone" id="phone" class="form-control" required>
+                </div>
+
+                <button class="btn btn-success w-100">Place Order 🚀</button>
+            </form>
+
+            <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary w-100 mt-3">← Back to Cart</a>
+        </div>
+    </div>
+    {% else %}
+        <p class="text-center">Your cart is empty 😢</p>
+    {% endif %}
+</div>
+{% endblock %}

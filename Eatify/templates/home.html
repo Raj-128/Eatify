@@ -1,0 +1,45 @@
+{% extends 'eatifybase.html' %}
+
+{% block title %}Home | Eatify{% endblock %}
+
+{% block content %}
+<form method="GET" action="{% url 'eatify_home' %}" class="container mt-3">
+    <div class="row justify-content-center">
+      <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+        <div class="input-group">
+          <input 
+            type="text" 
+            name="q" 
+            class="form-control rounded-start" 
+            placeholder="Search delicious food..." 
+            value="{{ query }}"
+          />
+          <button class="btn btn-success rounded-end" type="submit">🔍</button>
+        </div>
+      </div>
+    </div>
+  </form>
+  
+<h2 class="text-center mb-4">🍽️ Welcome to Eatify!</h2>
+
+<!-- Food Cards -->
+<div class="row">
+    {% for food in foods %}
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                {% if food.images.first %}
+                <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.images.first.food_image.url }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ food.food_name }}</h5>
+                    <p class="card-text">{{ food.food_description|truncatechars:100 }}</p>
+                    <p><strong>₹{{ food.food_price }}</strong> <del class="text-muted">₹{{ food.food_demo_price }}</del></p>
+                    <a href="{% url 'food_detail' food.food_slug %}" class="btn btn-primary w-100">View Dish</a>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <p>No food items available.</p>
+    {% endfor %}
+</div>
+{% endblock %}
