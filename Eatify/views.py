@@ -99,6 +99,7 @@ def start_payment(request):
         return render(request, 'cashfree_payment.html', {'payment_data': data})
 
     return redirect('checkout')
+@login_required
 def generate_signature(data, secret_key):
     sorted_data = sorted(data.items())
     data_string = ''.join(key + str(value) for key, value in sorted_data)
@@ -106,6 +107,7 @@ def generate_signature(data, secret_key):
         hmac.new(secret_key.encode(), data_string.encode(), digestmod=hashlib.sha256).digest()
     ).decode()
 # 🥘 Food Detail View
+@login_required
 def start_payment(request):
     if request.method == 'POST':
         phone = request.POST.get('phone')  # user entered phone
@@ -196,10 +198,14 @@ def view_cart(request):
 # ✅ Checkout
 @login_required
 def checkout(request):
-    from .models import Cart, Address, Order, OrderItem
     cart_items = Cart.objects.filter(user=request.user)
     addresses = Address.objects.filter(user=request.user)
     total = sum(item.food.food_price * item.quantity for item in cart_items)
+
+    # 👉 If no address found for user, redirect to add address page
+    if not addresses.exists():
+        messages.info(request, "Please add an address before checking out.")
+        return redirect('add_address')
 
     if request.method == "POST":
         address_id = request.POST.get("address_id")
@@ -211,15 +217,15 @@ def checkout(request):
 
         address = get_object_or_404(Address, uid=address_id)
 
-        # 👉 Create order
+        # ✅ Create Order
         order = Order.objects.create(
             user=request.user,
             total_price=total,
-            address=address,  # 👈 make sure you added this field in your Order model
+            address=address,
             status="PENDING"
         )
 
-        # 👉 Create order items
+        # ✅ Create Order Items
         for item in cart_items:
             OrderItem.objects.create(
                 order=order,
@@ -228,11 +234,11 @@ def checkout(request):
                 price=item.food.food_price
             )
 
-        # 👉 Clear cart
+        # ✅ Clear cart
         cart_items.delete()
 
-        # ✅ Redirect to payment page or order success
-        return redirect('order_success')  # ya 'start_payment', etc.
+        # ✅ Redirect to success page
+        return redirect('order_success')  # or 'start_payment' if payment flow is needed
 
     return render(request, 'checkout.html', {
         'cart_items': cart_items,
@@ -240,71 +246,6 @@ def checkout(request):
         'total': total
     })
 
-    from .models import Cart, Address  # 👈 important
-    cart_items = Cart.objects.filter(user=request.user)
-    addresses = Address.objects.filter(user=request.user)
-    total = sum(item.food.food_price * item.quantity for item in cart_items)
-
-    if request.method == "POST":
-        address_id = request.POST.get("address_id")
-        phone = request.POST.get("phone")
-
-        # extra validations (optional)
-        if not address_id or not phone:
-            messages.error(request, "Address or Phone is missing!")
-            return redirect('checkout')
-
-        # ... rest of order/payment logic
-
-    return render(request, 'checkout.html', {
-        'cart_items': cart_items,
-        'addresses': addresses,
-        'total': total
-    })
-
-
-    cart_items = Cart.objects.filter(user=request.user)
-    addresses = Address.objects.filter(user=request.user)
-    total = sum(item.food.food_price * item.quantity for item in cart_items)
-
-    if request.method == "POST":
-        address_id = request.POST.get("address_id")
-        phone_number = request.POST.get("phone")  # if you are asking for this in form
-        # rest of the payment code...
-    
-    return render(request, 'checkout.html', {
-        'cart_items': cart_items,
-        'addresses': addresses,
-        'total': total
-    })
-
-    cart_items = Cart.objects.filter(user=request.user)
-    total = sum(item.food.food_price * item.quantity for item in cart_items)
-
-    if request.method == "POST":
-        address = Address.objects.get(uid=request.POST.get('address_id'))
-        phone_number = request.POST.get('phone')  # 🆕 phone input from user
-
-        order = Order.objects.create(user=request.user, total_price=total, address=address)
-
-        for item in cart_items:
-            OrderItem.objects.create(order=order, food=item.food, quantity=item.quantity, price=item.food.food_price)
-        cart_items.delete()
-
-        # Use phone number from user input
-        payment_data = {
-            "order_id": str(order.uid),
-            "order_amount": float(order.total_price),
-            "customer_name": request.user.username,
-            "customer_email": request.user.email,
-            "customer_phone": phone_number,
-            "return_url": config("CASHFREE_RETURN_URL"),
-        }
-
-        return render(request, "cashfree_payment.html", {"payment_data": payment_data})
-
-    addresses = Address.objects.filter(user=request.user)
-    return render(request, 'checkout.html', {"cart_items": cart_items, "total": total, "addresses": addresses})
 @login_required
 def add_address(request):
     if request.method == "POST":
@@ -318,9 +259,11 @@ def add_address(request):
             city=city,
             pincode=pincode
         )
+        messages.success(request, "Address added successfully!")
         return redirect('checkout')
 
-    return render(request, 'add_address.html')
+    return render(request, 'add_address.html')  # 👈 ye line bilkul sahi aligned honi chahiye
+
 
 # ✅ Order Success
 @login_required
