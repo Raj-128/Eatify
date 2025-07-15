@@ -28,11 +28,15 @@ def home(request):
             Q(category__name__icontains=query)
         )
 
+    # ✅ Remove the flag after first load
+    show_welcome = request.session.pop('show_welcome', False)
+
     return render(request, 'home.html', {
         'categories': categories,
         'foods': foods,
         'selected_category': selected_category,
-        'query': query
+        'query': query,
+        'show_welcome': show_welcome,  # 🔥 pass to template
     })
 
 @login_required
@@ -142,10 +146,6 @@ def start_payment(request):
         return render(request, 'cashfree_payment.html', {'payment_data': payment_data})
 
     return redirect('checkout') 
-@login_required
-def food_detail(request, slug):
-    food = get_object_or_404(Food, food_slug=slug)
-    return render(request, 'food_detail.html', {'food': food})
 
 # ➕ Add to Cart
 @login_required
@@ -184,6 +184,17 @@ def remove_from_cart(request, food_slug):
     if cart_item:
         cart_item.delete()
     return redirect('view_cart')
+
+@login_required
+def food_detail(request, slug):
+    food = get_object_or_404(Food, food_slug=slug)
+    wishlist_items = Wishlist.objects.filter(user=request.user).values_list('food', flat=True)
+    reviews = Review.objects.filter(food=food).order_by('-created_at')
+    return render(request, 'food_detail.html', {
+        'food': food,
+        'wishlist_items': wishlist_items,
+        'reviews': reviews
+    })
 
 # 🛒 View Cart
 @login_required
@@ -301,10 +312,13 @@ def eatify_login(request):
         user = authenticate(username=username, password=password)
         if user:
             login(request, user)
+            request.session['show_welcome'] = True  # ✅ Set session flag for welcome message
             return redirect('eatify_home')
         else:
             messages.error(request, "Invalid credentials")
     return render(request, "login.html")
+
+
 
 # 🔐 Register View
 def eatify_register(request):
@@ -336,3 +350,19 @@ def eatify_register(request):
 def eatify_logout(request):
     logout(request)
     return redirect("eatify_home")
+
+@login_required
+def add_review(request, uid):
+    food = get_object_or_404(Food, uid=uid)
+    if request.method == 'POST':
+        rating = request.POST.get('rating')
+        comment = request.POST.get('comment')
+        Review.objects.create(
+            user=request.user,
+            food=food,
+            rating=rating,
+            comment=comment
+        )
+        messages.success(request, "Review submitted successfully!")
+    return redirect('food_detail', slug=food.food_slug)
+

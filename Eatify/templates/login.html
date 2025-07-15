@@ -42,11 +42,24 @@
     <div class="col-11 col-sm-10 col-md-8 col-lg-6 col-xl-5 login-box">
         <h3 class="mb-4 text-center">🔐 Login to Eatify</h3>
 
-        {% if messages %}
-            {% for msg in messages %}
-                <div class="alert alert-danger">{{ msg }}</div>
-            {% endfor %}
-        {% endif %}
+      {% if messages %}
+        {% for message in messages %}
+         <div class="alert alert-{{ message.tags }}" role="alert">
+          {{ message }}
+         </div>
+        {% endfor %}
+      {% endif %}
+<script>
+  setTimeout(function () {
+    let alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+      alert.style.transition = "opacity 0.5s ease-out";
+      alert.style.opacity = "0";
+      setTimeout(() => alert.remove(), 500);
+    });
+  }, 3000); // 3 seconds baad hat jaayega
+</script>
+
 
         <form method="POST">
             {% csrf_token %}

@@ -4,18 +4,65 @@
 
 {% block content %}
 <a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mb-3">← Back</a>
+
 <div class="row">
     <div class="col-md-6">
-        <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.images.first.food_image.url }}">
+        <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.food_name }}">
     </div>
     <div class="col-md-6">
         <h2>{{ food.food_name }}</h2>
         <p>{{ food.food_description }}</p>
-        <h4>Price: ₹{{ food.food_price }} <del class="text-muted">₹{{ food.food_demo_price }}</del></h4>
-        <form action="{% url 'add_to_cart' food.uid %}" method="post">
+        <h4>
+            Price: ₹{{ food.food_price }}
+            <del class="text-muted">₹{{ food.food_demo_price }}</del>
+        </h4>
+
+        <!-- Wishlist toggle -->
+        {% if food in wishlist_items %}
+            <a href="{% url 'remove_from_wishlist' food.uid %}" class="btn btn-danger mt-2">❤️ Remove from Wishlist</a>
+        {% else %}
+            <a href="{% url 'add_to_wishlist' food.uid %}" class="btn btn-outline-danger mt-2">🤍 Add to Wishlist</a>
+        {% endif %}
+
+        <!-- Add to cart -->
+        <form action="{% url 'add_to_cart' food.uid %}" method="post" class="mt-3">
             {% csrf_token %}
-            <button class="btn btn-success mt-3">Add to Cart 🛒</button>
+            <button class="btn btn-success">Add to Cart 🛒</button>
         </form>
     </div>
 </div>
+
+<hr>
+
+<!-- Review Section -->
+<h3 class="mt-5">Reviews</h3>
+
+{% for review in reviews %}
+    <div class="border p-3 mb-3 rounded">
+        <strong>{{ review.user.username }}</strong> - ⭐ {{ review.rating }}
+        <p>{{ review.comment }}</p>
+        <small class="text-muted">{{ review.created_at|date:"d M Y H:i" }}</small>
+    </div>
+{% empty %}
+    <p>No reviews yet. Be the first to review!</p>
+{% endfor %}
+
+<!-- Add Review Form -->
+<form action="{% url 'add_review' food.uid %}" method="post" class="mt-4">
+    {% csrf_token %}
+    <div class="mb-2">
+        <label for="rating">Rating</label>
+        <select name="rating" class="form-control" required>
+            <option value="">--Select Rating--</option>
+            {% for i in "12345" %}
+                <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-2">
+        <label for="comment">Comment</label>
+        <textarea name="comment" class="form-control" rows="3" placeholder="Write your thoughts..."></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit Review</button>
+</form>
 {% endblock %}

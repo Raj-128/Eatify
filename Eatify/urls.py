@@ -22,6 +22,7 @@ path('wishlist/', wishlist_view, name='wishlist_view'),
 path('add-to-wishlist/<uuid:uid>/', add_to_wishlist, name='add_to_wishlist'),
 path('remove-from-wishlist/<uuid:uid>/', remove_from_wishlist, name='remove_from_wishlist'),
 path('order-history/', order_history, name='order_history'),
+path('add-review/<uuid:uid>/', add_review, name='add_review'),
 
 
 ]

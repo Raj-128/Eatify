@@ -115,12 +115,42 @@ body {
 </style>
 </head>
 <body>
+    {% if show_welcome and user.is_authenticated %}
+    <div id="welcome-msg" class="text-center my-3">
+        <h5 class="text-success fw-semibold">Welcome, {{ user.first_name|default:user.username }}! 👋</h5>
+    </div>
+    <script>
+        setTimeout(function () {
+            const welcome = document.getElementById('welcome-msg');
+            if (welcome) {
+                welcome.style.transition = "opacity 1s ease";
+                welcome.style.opacity = 0;
+                setTimeout(() => welcome.remove(), 1000);
+            }
+        }, 5000);
+    </script>
+    
+{% endif %}
 
 <!-- 🧊 Premium Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark navbar-premium fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'eatify_home' %}">🍽️ Eatify</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+        <a class="navbar-brand d-flex align-items-center" href="{% url 'eatify_home' %}">
+            {% if user.is_authenticated %}
+                <span class="small fw-medium me-2" style="color: #b0bec5; font-size: 0.85rem;">
+                    👤 {{ user.first_name|default:user.username }}
+                </span>
+            {% endif %}
+            <span class="fw-bold" style="font-size: 1.9rem;
+                background: linear-gradient(to right, #FF416C, #FF4B2B);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;">
+                🍽️ Eatify
+            </span>
+        </a>
+        
+         
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
             <span class="navbar-toggler-icon"></span>
         </button>
 
@@ -158,7 +188,7 @@ body {
                     <a class="nav-link" href="{% url 'wishlist_view' %}">💖Wishlist </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-danger" href="{% url 'eatify_logout' %}">IILogoutII</a>
+                        <a class="nav-link text-danger" href="{% url 'eatify_logout' %}">🚪 Logout</a>
                     </li>
                 {% else %}
                     <li class="nav-item">
