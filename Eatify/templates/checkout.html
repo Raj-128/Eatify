@@ -26,7 +26,7 @@
                 </li>
             </ul>
 
-            <form method="post">
+            <form method="post" action="{% url 'checkout' %}">
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="address">Select Address</label>
@@ -39,7 +39,8 @@
 
                 <div class="mb-3">
                     <label for="phone">Enter Phone Number</label>
-                    <input type="text" name="phone" id="phone" class="form-control" required>
+                    <input type="text" name="phone" id="phone" class="form-control"
+                           value="{{ phone|default:'' }}" required>
                 </div>
 
                 <button class="btn btn-success w-100">Place Order 🚀</button>

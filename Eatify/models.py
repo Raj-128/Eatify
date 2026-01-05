@@ -62,6 +62,7 @@ class Order(BaseModel):
     address = models.ForeignKey('Address', on_delete=models.SET_NULL, null=True, blank=True)  # 👈 Add this line
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     is_paid = models.BooleanField(default=False)
+    phone = models.CharField(max_length=15, null=True, blank=True) 
     status = models.CharField(
         max_length=50, choices=(
             ("PENDING", "Pending"),

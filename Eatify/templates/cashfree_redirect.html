@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+</head>
+<body>
+<script>
+  const cashfree = Cashfree({
+    mode: "sandbox"
+  });
+
+  cashfree.checkout({
+    paymentSessionId: "{{ payment_session_id }}",
+    redirectTarget: "_self"
+  });
+</script>
+</body>
+</html>

@@ -9,11 +9,12 @@ from .models import Food, Cart, Order, OrderItem, Category, Address, Wishlist, R
 import random ,hashlib, hmac, base64
 from django.db.models import Q
 from decouple import config
-
+import requests , uuid
+# Home / Food Browsing
 # 🏠 Home Page View
 def home(request):
-    query = request.GET.get("q")
-    selected_category = request.GET.get("category")
+    query = request.GET.get("q","")
+    selected_category = request.GET.get("category", "")
     categories = Category.objects.all()
 
     if selected_category:
@@ -28,7 +29,6 @@ def home(request):
             Q(category__name__icontains=query)
         )
 
-    # ✅ Remove the flag after first load
     show_welcome = request.session.pop('show_welcome', False)
 
     return render(request, 'home.html', {
@@ -36,155 +36,10 @@ def home(request):
         'foods': foods,
         'selected_category': selected_category,
         'query': query,
-        'show_welcome': show_welcome,  # 🔥 pass to template
+        'show_welcome': show_welcome,
     })
 
-@login_required
-def start_payment(request):
-    if request.method == 'POST':
-        phone = request.POST.get('phone')
-        address_id = request.POST.get('address_id')
-
-        if not phone or not address_id:
-            return redirect('checkout')
-
-        address = get_object_or_404(Address, uid=address_id)
-        cart_items = Cart.objects.filter(user=request.user)
-        total = sum(item.food.food_price * item.quantity for item in cart_items)
-
-        if not cart_items.exists():
-            return redirect('view_cart')
-
-        # 🔸 Order Creation
-        order = Order.objects.create(
-            user=request.user,
-            total_price=total,
-            address=address,
-            is_paid=False,
-            status="PENDING"
-        )
-
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                food=item.food,
-                quantity=item.quantity,
-                price=item.food.food_price
-            )
-
-        # 🔸 Cashfree Payment Params
-        order_id = str(order.uid)
-        amount = str(total)
-        currency = "INR"
-        return_url = settings.CASHFREE_RETURN_URL
-
-        data = {
-            "orderId": order_id,
-            "orderAmount": amount,
-            "orderCurrency": currency,
-            "customerPhone": phone,
-            "customerEmail": request.user.email,
-            "customerName": request.user.username,
-            "returnUrl": return_url,
-            "notifyUrl": return_url,
-            "appId": settings.CASHFREE_APP_ID,
-        }
-
-        # 🔸 Signature Generation
-        signature_data = f"{data['appId']}{data['orderId']}{data['orderAmount']}{data['orderCurrency']}{data['customerEmail']}{data['returnUrl']}{settings.CASHFREE_SECRET_KEY}"
-        signature = hashlib.sha256(signature_data.encode()).hexdigest()
-
-        data["signature"] = signature
-        data["gateway_url"] = settings.CASHFREE_API_URL
-
-        # 🔸 Empty Cart
-        cart_items.delete()
-
-        return render(request, 'cashfree_payment.html', {'payment_data': data})
-
-    return redirect('checkout')
-@login_required
-def generate_signature(data, secret_key):
-    sorted_data = sorted(data.items())
-    data_string = ''.join(key + str(value) for key, value in sorted_data)
-    return base64.b64encode(
-        hmac.new(secret_key.encode(), data_string.encode(), digestmod=hashlib.sha256).digest()
-    ).decode()
-# 🥘 Food Detail View
-@login_required
-def start_payment(request):
-    if request.method == 'POST':
-        phone = request.POST.get('phone')  # user entered phone
-        order = Order.objects.create(user=request.user, total_price=999.00)  # 👈 use your real cart total here
-
-        data = {
-            "appId": settings.CASHFREE_APP_ID,
-            "orderId": str(order.uid),
-            "orderAmount": str(order.total_price),
-            "orderCurrency": "INR",
-            "customerName": request.user.username,
-            "customerEmail": request.user.email,
-            "customerPhone": phone,
-            "returnUrl": settings.CASHFREE_RETURN_URL,
-            "notifyUrl": settings.CASHFREE_RETURN_URL,
-        }
-
-        signature = generate_signature(data, settings.CASHFREE_SECRET_KEY)
-
-        payment_data = {
-            "gateway_url": settings.CASHFREE_API_URL,
-            "app_id": data["appId"],
-            "order_id": data["orderId"],
-            "order_amount": data["orderAmount"],
-            "customer_name": data["customerName"],
-            "customer_email": data["customerEmail"],
-            "customer_phone": data["customerPhone"],
-            "return_url": data["returnUrl"],
-            "signature": signature
-        }
-
-        return render(request, 'cashfree_payment.html', {'payment_data': payment_data})
-
-    return redirect('checkout') 
-
-# ➕ Add to Cart
-@login_required
-def add_to_cart(request, uid):
-    food = get_object_or_404(Food, uid=uid)
-    cart_item, created = Cart.objects.get_or_create(user=request.user, food=food)
-    if not created:
-        cart_item.quantity += 1
-        cart_item.save()
-    return redirect('view_cart')
-
-# 🔼 Increase Quantity
-@login_required
-def increase_cart_quantity(request, uid):
-    cart_item = get_object_or_404(Cart, user=request.user, food__uid=uid)
-    cart_item.quantity += 1
-    cart_item.save()
-    return redirect('view_cart')
-
-# 🔽 Decrease Quantity
-@login_required
-def decrease_cart_quantity(request, uid):
-    cart_item = get_object_or_404(Cart, user=request.user, food__uid=uid)
-    if cart_item.quantity > 1:
-        cart_item.quantity -= 1
-        cart_item.save()
-    else:
-        cart_item.delete()
-    return redirect('view_cart')
-
-# ❌ Remove from Cart
-@login_required
-def remove_from_cart(request, food_slug):
-    food = get_object_or_404(Food, food_slug=food_slug)
-    cart_item = Cart.objects.filter(user=request.user, food=food).first()
-    if cart_item:
-        cart_item.delete()
-    return redirect('view_cart')
-
+# Food Detail + Reviews
 @login_required
 def food_detail(request, slug):
     food = get_object_or_404(Food, food_slug=slug)
@@ -196,7 +51,22 @@ def food_detail(request, slug):
         'reviews': reviews
     })
 
-# 🛒 View Cart
+@login_required
+def add_review(request, uid):
+    food = get_object_or_404(Food, uid=uid)
+    if request.method == 'POST':
+        rating = request.POST.get('rating')
+        comment = request.POST.get('comment')
+        Review.objects.create(
+            user=request.user,
+            food=food,
+            rating=rating,
+            comment=comment
+        )
+        messages.success(request, "Review submitted successfully!")
+    return redirect('food_detail', slug=food.food_slug)
+
+# Cart Management
 @login_required
 def view_cart(request):
     cart_items = Cart.objects.filter(user=request.user)
@@ -206,17 +76,70 @@ def view_cart(request):
         'total': total
     })
 
-# ✅ Checkout
+@login_required
+def add_to_cart(request, uid):
+    food = get_object_or_404(Food, uid=uid)
+    cart_item, created = Cart.objects.get_or_create(user=request.user, food=food)
+    if not created:
+        cart_item.quantity += 1
+        cart_item.save()
+    return redirect('view_cart')
+
+@login_required
+def increase_cart_quantity(request, uid):
+    cart_item = get_object_or_404(Cart, user=request.user, food__uid=uid)
+    cart_item.quantity += 1
+    cart_item.save()
+    return redirect('view_cart')
+
+@login_required
+def decrease_cart_quantity(request, uid):
+    cart_item = get_object_or_404(Cart, user=request.user, food__uid=uid)
+    if cart_item.quantity > 1:
+        cart_item.quantity -= 1
+        cart_item.save()
+    else:
+        cart_item.delete()
+    return redirect('view_cart')
+
+@login_required
+def remove_from_cart(request, food_slug):
+    food = get_object_or_404(Food, food_slug=food_slug)
+    cart_item = Cart.objects.filter(user=request.user, food=food).first()
+    if cart_item:
+        cart_item.delete()
+    return redirect('view_cart')
+
+# Wishlist Management
+@login_required
+def wishlist_view(request):
+    wishlist_items = Wishlist.objects.filter(user=request.user)
+    return render(request, 'wishlist.html', {'wishlist_items': wishlist_items})
+
+@login_required
+def add_to_wishlist(request, uid):
+    food = get_object_or_404(Food, uid=uid)
+    Wishlist.objects.get_or_create(user=request.user, food=food)
+    return redirect('wishlist_view')
+
+@login_required
+def remove_from_wishlist(request, uid):
+    food = get_object_or_404(Food, uid=uid)
+    Wishlist.objects.filter(user=request.user, food=food).delete()
+    return redirect('wishlist_view')
+
+# Checkout & Payment Flow
 @login_required
 def checkout(request):
     cart_items = Cart.objects.filter(user=request.user)
     addresses = Address.objects.filter(user=request.user)
     total = sum(item.food.food_price * item.quantity for item in cart_items)
 
-    # 👉 If no address found for user, redirect to add address page
     if not addresses.exists():
         messages.info(request, "Please add an address before checking out.")
         return redirect('add_address')
+
+    phone = request.session.get('checkout_phone', '')
 
     if request.method == "POST":
         address_id = request.POST.get("address_id")
@@ -226,35 +149,16 @@ def checkout(request):
             messages.error(request, "Address or Phone is required.")
             return redirect('checkout')
 
-        address = get_object_or_404(Address, uid=address_id)
+        request.session['checkout_address_id'] = address_id
+        request.session['checkout_phone'] = phone
 
-        # ✅ Create Order
-        order = Order.objects.create(
-            user=request.user,
-            total_price=total,
-            address=address,
-            status="PENDING"
-        )
-
-        # ✅ Create Order Items
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                food=item.food,
-                quantity=item.quantity,
-                price=item.food.food_price
-            )
-
-        # ✅ Clear cart
-        cart_items.delete()
-
-        # ✅ Redirect to success page
-        return redirect('order_success')  # or 'start_payment' if payment flow is needed
+        return redirect('start_payment')
 
     return render(request, 'checkout.html', {
         'cart_items': cart_items,
         'addresses': addresses,
-        'total': total
+        'total': total,
+        'phone': phone
     })
 
 @login_required
@@ -273,10 +177,137 @@ def add_address(request):
         messages.success(request, "Address added successfully!")
         return redirect('checkout')
 
-    return render(request, 'add_address.html')  # 👈 ye line bilkul sahi aligned honi chahiye
+    return render(request, 'add_address.html')
+
+@login_required
+def start_payment(request):
+    print("---- START PAYMENT ----")
+
+    phone = request.session.get("checkout_phone")
+    address_id = request.session.get("checkout_address_id")
+
+    print("PHONE:", phone)
+    print("ADDRESS ID:", address_id)
+    print("USER:", request.user)
+
+    if not phone or not address_id:
+        messages.error(request, "Invalid session data")
+        return redirect("checkout")
+
+    cart_items = Cart.objects.filter(user=request.user)
+    print("CART COUNT:", cart_items.count())
+
+    if not cart_items.exists():
+        messages.error(request, "Your cart is empty")
+        return redirect("view_cart")
+
+    address = get_object_or_404(Address, uid=address_id)
+    total = sum(item.food.food_price * item.quantity for item in cart_items)
+
+    order = Order.objects.create(
+        user=request.user,
+        total_price=total,
+        address=address,
+        phone=phone,
+        is_paid=False,
+        status="PENDING"
+    )
+
+    for item in cart_items:
+        OrderItem.objects.create(
+            order=order,
+            food=item.food,
+            quantity=item.quantity,
+            price=item.food.food_price
+        )
+
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "x-client-id": settings.CASHFREE_APP_ID,
+        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "x-api-version": "2022-09-01",
+    }
 
 
-# ✅ Order Success
+
+
+    payload = {
+        "order_id": str(order.uid),
+        "order_amount": float(total),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id": str(request.user.id),
+            "customer_email": request.user.email or "test@test.com",
+            "customer_phone": phone
+        },
+        "order_meta": {
+            "return_url": f"{settings.CASHFREE_RETURN_URL}?orderId={order.uid}"
+        }
+    }
+
+    response = requests.post(settings.CASHFREE_API_URL, headers=headers, json=payload)
+
+    print("CASHFREE STATUS:", response.status_code)
+    print("CASHFREE BODY:", response.text)
+
+    if response.status_code != 200:
+        messages.error(request, "Payment initiation failed.")
+        return redirect("view_cart")
+
+    data = response.json()
+    payment_session_id = data.get("payment_session_id")
+
+    if not payment_session_id:
+        messages.error(request, "Payment session not created.")
+        return redirect("view_cart")
+
+    return render(request, "cashfree_redirect.html", {
+        "payment_session_id": payment_session_id
+    })
+
+
+@login_required
+def payment_success(request):
+    order_id = request.GET.get("orderId")
+
+    if not order_id:
+        messages.error(request, "Invalid payment response")
+        return redirect("view_cart")
+
+    url = f"{settings.CASHFREE_API_URL}/{order_id}"
+
+
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "x-client-id": settings.CASHFREE_APP_ID,
+        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "x-api-version": "2022-09-01",
+    }
+
+
+    response = requests.get(url, headers=headers)
+
+    if response.status_code != 200:
+        messages.error(request, "Unable to verify payment. Please contact support.")
+        return redirect("view_cart")
+    data = response.json()
+
+    order_status = data.get("order_status")
+
+    if order_status == "PAID":
+        order = Order.objects.filter(uid=order_id, user=request.user).first()
+        if order and not order.is_paid:
+            order.is_paid = True
+            order.status = "PLACED"
+            order.save()
+            Cart.objects.filter(user=request.user).delete()
+        return redirect("order_success")
+
+    messages.error(request, "Payment not confirmed yet.")
+    return redirect("view_cart")
+
 @login_required
 def order_success(request):
     return render(request, 'order_success.html')
@@ -287,24 +318,7 @@ def order_history(request):
     return render(request, 'order_history.html', {'orders': orders})
 
 
-@login_required
-def add_to_wishlist(request, uid):
-    food = get_object_or_404(Food, uid=uid)
-    Wishlist.objects.get_or_create(user=request.user, food=food)
-    return redirect('wishlist_view')
-
-@login_required
-def remove_from_wishlist(request, uid):
-    food = get_object_or_404(Food, uid=uid)
-    Wishlist.objects.filter(user=request.user, food=food).delete()
-    return redirect('wishlist_view')
-
-@login_required
-def wishlist_view(request):
-    wishlist_items = Wishlist.objects.filter(user=request.user)
-    return render(request, 'wishlist.html', {'wishlist_items': wishlist_items})
-
-# 🔐 Login View
+# Authentication (Login/Register/Logout)
 def eatify_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -312,15 +326,12 @@ def eatify_login(request):
         user = authenticate(username=username, password=password)
         if user:
             login(request, user)
-            request.session['show_welcome'] = True  # ✅ Set session flag for welcome message
+            request.session['show_welcome'] = True
             return redirect('eatify_home')
         else:
             messages.error(request, "Invalid credentials")
     return render(request, "login.html")
 
-
-
-# 🔐 Register View
 def eatify_register(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -340,29 +351,13 @@ def eatify_register(request):
             messages.error(request, "Email already registered")
             return redirect("eatify_register")
 
-        user = User.objects.create_user(username=username, email=email, password=password)
+        User.objects.create_user(username=username, email=email, password=password)
         messages.success(request, "Registration successful! Please log in.")
         return redirect("eatify_login")
 
     return render(request, "register.html")
 
-# 🔐 Logout View
 def eatify_logout(request):
     logout(request)
     return redirect("eatify_home")
-
-@login_required
-def add_review(request, uid):
-    food = get_object_or_404(Food, uid=uid)
-    if request.method == 'POST':
-        rating = request.POST.get('rating')
-        comment = request.POST.get('comment')
-        Review.objects.create(
-            user=request.user,
-            food=food,
-            rating=rating,
-            comment=comment
-        )
-        messages.success(request, "Review submitted successfully!")
-    return redirect('food_detail', slug=food.food_slug)
 
