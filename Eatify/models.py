@@ -108,3 +108,10 @@ class Wishlist(BaseModel):
 
     def __str__(self):
         return f"{self.food.food_name} in wishlist of {self.user.username}"
+class Coupon(BaseModel):
+    code = models.CharField(max_length=20, unique=True)
+    discount_percentage = models.IntegerField(default=10)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.code

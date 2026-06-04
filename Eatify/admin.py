@@ -31,3 +31,7 @@ class OrderAdmin(admin.ModelAdmin):
             obj.status
         )
     colored_status.short_description = 'Status'
+
+from .models import Coupon
+
+admin.site.register(Coupon)

@@ -65,4 +65,31 @@
     </div>
     <button type="submit" class="btn btn-primary">Submit Review</button>
 </form>
+<hr>
+
+<h4 class="mb-3">🍔 You May Also Like</h4>
+
+<div class="row">
+    {% for item in recommended_foods %}
+        <div class="col-md-3">
+            <div class="card mb-3 shadow-sm">
+                {% if item.images.first %}
+                    <img src="{{ item.images.first.food_image.url }}"
+                         class="card-img-top"
+                         style="height:180px;object-fit:cover;">
+                {% endif %}
+
+                <div class="card-body">
+                    <h6>{{ item.food_name }}</h6>
+                    <p class="fw-bold">₹{{ item.food_price }}</p>
+
+                    <a href="{% url 'food_detail' item.food_slug %}"
+                       class="btn btn-outline-primary btn-sm w-100">
+                        View Dish
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
 {% endblock %}

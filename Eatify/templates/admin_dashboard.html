@@ -1,0 +1,191 @@
+{% extends 'eatifybase.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+```
+<!-- Dashboard Header -->
+<div class="text-center mb-5">
+    <h1 class="fw-bold display-5">
+        📊 Eatify Analytics Dashboard
+    </h1>
+    <p class="text-muted">
+        Monitor orders, revenue, customers and food performance
+    </p>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-5">
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card border-0 shadow-lg rounded-4 h-100">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-cart-check-fill text-primary display-4"></i>
+                <h2 class="fw-bold mt-3">{{ total_orders }}</h2>
+                <p class="text-muted mb-0">Total Orders</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="card border-0 shadow-lg rounded-4 h-100">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-people-fill text-success display-4"></i>
+                <h2 class="fw-bold mt-3">{{ total_users }}</h2>
+                <p class="text-muted mb-0">Registered Users</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-12">
+        <div class="card border-0 shadow-lg rounded-4 h-100">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-currency-rupee text-warning display-4"></i>
+                <h2 class="fw-bold mt-3">₹{{ total_revenue }}</h2>
+                <p class="text-muted mb-0">Revenue Generated</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Order Status Cards -->
+<div class="row g-4 mb-5">
+
+    <div class="col-md-3">
+        <div class="card bg-warning border-0 shadow rounded-4">
+            <div class="card-body text-center">
+                <h3>{{ pending_orders }}</h3>
+                <p class="mb-0">Pending Orders</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-primary text-white border-0 shadow rounded-4">
+            <div class="card-body text-center">
+                <h3>{{ confirmed_orders }}</h3>
+                <p class="mb-0">Confirmed Orders</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-success text-white border-0 shadow rounded-4">
+            <div class="card-body text-center">
+                <h3>{{ delivered_orders }}</h3>
+                <p class="mb-0">Delivered Orders</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-danger text-white border-0 shadow rounded-4">
+            <div class="card-body text-center">
+                <h3>{{ cancelled_orders }}</h3>
+                <p class="mb-0">Cancelled Orders</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Recent Orders -->
+<div class="card border-0 shadow-lg rounded-4 mb-5">
+    <div class="card-header bg-white border-0 py-3">
+        <h4 class="mb-0">🧾 Recent Orders</h4>
+    </div>
+
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                {% for order in recent_orders %}
+                    <tr>
+                        <td>{{ order.user.username }}</td>
+                        <td>₹{{ order.total_price }}</td>
+                        <td>
+
+                            {% if order.status == "PENDING" %}
+                                <span class="badge bg-warning text-dark">
+                                    Pending
+                                </span>
+
+                            {% elif order.status == "CONFIRMED" %}
+                                <span class="badge bg-primary">
+                                    Confirmed
+                                </span>
+
+                            {% elif order.status == "DELIVERED" %}
+                                <span class="badge bg-success">
+                                    Delivered
+                                </span>
+
+                            {% elif order.status == "CANCELLED" %}
+                                <span class="badge bg-danger">
+                                    Cancelled
+                                </span>
+                            {% endif %}
+
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Top Selling Foods -->
+<div class="card border-0 shadow-lg rounded-4">
+    <div class="card-header bg-white border-0 py-3">
+        <h4 class="mb-0">🍔 Top Selling Foods</h4>
+    </div>
+
+    <div class="card-body">
+
+        {% for food in top_foods %}
+
+            <div class="mb-4">
+
+                <div class="d-flex justify-content-between">
+                    <strong>{{ food.food__food_name }}</strong>
+                    <span>{{ food.total_sold }} Sold</span>
+                </div>
+
+                <div class="progress mt-2" style="height: 12px;">
+                    <div class="progress-bar bg-success"
+                         role="progressbar"
+                         style="width: {% widthratio food.total_sold top_foods.0.total_sold 100 %}%">
+                    </div>
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <p>No sales data available.</p>
+
+        {% endfor %}
+
+    </div>
+</div>
+
+</div>
+
+{% endblock %}

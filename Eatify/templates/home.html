@@ -33,6 +33,20 @@
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ food.food_name }}</h5>
+                    <div class="mb-2">
+    {% if food.avg_rating %}
+        <span class="text-warning fw-bold">
+            ⭐ {{ food.avg_rating|floatformat:1 }}
+        </span>
+        <small class="text-muted">
+            ({{ food.review_count }} Reviews)
+        </small>
+    {% else %}
+        <small class="text-muted">
+            No Reviews Yet
+        </small>
+    {% endif %}
+</div>
                     <p class="card-text">{{ food.food_description|truncatechars:100 }}</p>
                     <p><strong>₹{{ food.food_price }}</strong> <del class="text-muted">₹{{ food.food_demo_price }}</del></p>
                     <a href="{% url 'food_detail' food.food_slug %}" class="btn btn-primary w-100">View Dish</a>

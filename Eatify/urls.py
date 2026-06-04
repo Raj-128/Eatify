@@ -55,5 +55,15 @@ urlpatterns = [
     path('reset/done/', 
          auth_views.PasswordResetCompleteView.as_view(template_name="reset_password_complete.html"), 
          name='password_reset_complete'),
+     path(
+    'invoice/<uuid:order_id>/',
+    download_invoice,
+    name='download_invoice'
+),
+path(
+    'dashboard/',
+    admin_dashboard,
+    name='admin_dashboard'
+),
 ]
 

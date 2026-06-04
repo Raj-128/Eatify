@@ -23,8 +23,14 @@
                 </span>                </div>
                 <div class="card-body">
                     <p><strong>Total Price:</strong> ₹{{ order.total_price }}</p>
-                    <p><strong>Placed On:</strong> {{ order.created_at|date:"D, M d Y - h:i A" }}</p>
-                    <hr>
+<p><strong>Placed On:</strong> {{ order.created_at|date:"D, M d Y - h:i A" }}</p>
+
+<a href="{% url 'download_invoice' order.uid %}"
+   class="btn btn-outline-primary btn-sm mb-3">
+    📄 Download Invoice
+</a>
+
+<hr>
                     <ul class="list-group">
                         {% for item in order.items.all %}
                             <li class="list-group-item d-flex justify-content-between">

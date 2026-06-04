@@ -5,11 +5,25 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from .models import Food, Cart, Order, OrderItem, Category, Address, Wishlist, Review
+from .models import Food, Cart, Order, OrderItem, Category, Address, Wishlist, Review ,Coupon
 import random ,hashlib, hmac, base64
-from django.db.models import Q
+from django.db.models import Q ,Avg, Count, Sum
 from decouple import config
 import requests , uuid
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from django.http import HttpResponse
+
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer
+)
+
+from reportlab.lib.styles import (
+    getSampleStyleSheet
+)
 # Home / Food Browsing
 # 🏠 Home Page View
 def home(request):
@@ -18,9 +32,16 @@ def home(request):
     categories = Category.objects.all()
 
     if selected_category:
-        foods = Food.objects.filter(category__slug=selected_category)
+        foods = Food.objects.filter(
+            category__slug=selected_category
+        )
     else:
         foods = Food.objects.all()
+
+    foods = foods.annotate(
+        avg_rating=Avg("reviews__rating"),
+        review_count=Count("reviews")
+    )
 
     if query:
         foods = foods.filter(
@@ -42,13 +63,25 @@ def home(request):
 # Food Detail + Reviews
 @login_required
 def food_detail(request, slug):
-    food = get_object_or_404(Food, food_slug=slug)
+    food = get_object_or_404(
+        Food.objects.annotate(
+            avg_rating=Avg("reviews__rating"),
+            review_count=Count("reviews")
+        ),
+        food_slug=slug
+    )
+    recommended_foods = Food.objects.filter(
+    category=food.category
+).exclude(
+    uid=food.uid
+)[:4]
     wishlist_items = Wishlist.objects.filter(user=request.user).values_list('food', flat=True)
     reviews = Review.objects.filter(food=food).order_by('-created_at')
     return render(request, 'food_detail.html', {
         'food': food,
         'wishlist_items': wishlist_items,
-        'reviews': reviews
+        'reviews': reviews,
+        'recommended_foods': recommended_foods,
     })
 
 @login_required
@@ -133,7 +166,12 @@ def remove_from_wishlist(request, uid):
 def checkout(request):
     cart_items = Cart.objects.filter(user=request.user)
     addresses = Address.objects.filter(user=request.user)
-    total = sum(item.food.food_price * item.quantity for item in cart_items)
+    total = sum(
+    item.food.food_price * item.quantity
+    for item in cart_items
+)
+
+    discount = 0
 
     if not addresses.exists():
         messages.info(request, "Please add an address before checking out.")
@@ -144,21 +182,57 @@ def checkout(request):
     if request.method == "POST":
         address_id = request.POST.get("address_id")
         phone = request.POST.get("phone")
+        coupon_code = request.POST.get("coupon_code", "").strip()
 
         if not address_id or not phone:
             messages.error(request, "Address or Phone is required.")
             return redirect('checkout')
 
+        discount = 0
+
+        if coupon_code:
+
+            coupon = Coupon.objects.filter(
+                code__iexact=coupon_code,
+                is_active=True
+            ).first()
+
+            if coupon:
+
+                discount = (
+                    total * coupon.discount_percentage
+                ) / 100
+
+                total -= discount
+
+                request.session["discount"] = float(discount)
+                request.session["final_total"] = float(total)
+
+                messages.success(
+                    request,
+                    f"{coupon.discount_percentage}% discount applied!"
+                )
+
+            else:
+
+                messages.error(
+                request,
+                "Invalid Coupon Code"
+                )
+
+                return redirect("checkout")
+    
         request.session['checkout_address_id'] = address_id
         request.session['checkout_phone'] = phone
-
+        request.session["final_total"] = float(total)
         return redirect('start_payment')
 
     return render(request, 'checkout.html', {
         'cart_items': cart_items,
         'addresses': addresses,
         'total': total,
-        'phone': phone
+        'phone': phone,
+        'discount': discount,
     })
 
 @login_required
@@ -202,8 +276,13 @@ def start_payment(request):
         return redirect("view_cart")
 
     address = get_object_or_404(Address, uid=address_id)
-    total = sum(item.food.food_price * item.quantity for item in cart_items)
+    total = request.session.get("final_total")
 
+    if not total:
+        total = sum(
+            item.food.food_price * item.quantity
+            for item in cart_items
+    )
     order = Order.objects.create(
         user=request.user,
         total_price=total,
@@ -300,7 +379,7 @@ def payment_success(request):
         order = Order.objects.filter(uid=order_id, user=request.user).first()
         if order and not order.is_paid:
             order.is_paid = True
-            order.status = "PLACED"
+            order.status = "CONFIRMED"
             order.save()
             Cart.objects.filter(user=request.user).delete()
         return redirect("order_success")
@@ -317,6 +396,233 @@ def order_history(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'order_history.html', {'orders': orders})
 
+# views.py
+
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Table, TableStyle
+
+from .models import Order
+
+
+# ── Colour palette ───────────────────────────────────────────────────────────
+DARK        = colors.HexColor("#1a1a1a")
+WHITE       = colors.white
+LIGHT_GRAY  = colors.HexColor("#f5f5f5")
+MID_GRAY    = colors.HexColor("#888780")
+BORDER_GRAY = colors.HexColor("#e0ddd6")
+GREEN_BG    = colors.HexColor("#eaf3de")
+GREEN_TEXT  = colors.HexColor("#3b6d11")
+
+
+# ── Helper functions (module-level, reusable) ────────────────────────────────
+
+def draw_rounded_rect(c, x, y, w, h, radius=6, fill_color=None, stroke_color=None):
+    p = c.beginPath()
+    p.moveTo(x + radius, y)
+    p.lineTo(x + w - radius, y)
+    p.arcTo(x + w - radius, y, x + w, y + radius, -90, 90)
+    p.lineTo(x + w, y + h - radius)
+    p.arcTo(x + w - radius, y + h - radius, x + w, y + h, 0, 90)
+    p.lineTo(x + radius, y + h)
+    p.arcTo(x, y + h - radius, x + radius, y + h, 90, 90)
+    p.lineTo(x, y + radius)
+    p.arcTo(x, y, x + radius, y + radius, 180, 90)
+    p.close()
+    if fill_color:
+        c.setFillColor(fill_color)
+    if stroke_color:
+        c.setStrokeColor(stroke_color)
+    c.drawPath(p, fill=1 if fill_color else 0, stroke=1 if stroke_color else 0)
+
+
+def draw_header(c, width, height, order):
+    c.setFillColor(DARK)
+    c.rect(0, height - 80, width, 80, fill=1, stroke=0)
+
+    c.setFillColor(WHITE)
+    c.setFont("Helvetica-Bold", 22)
+    c.drawString(40, height - 38, "EATIFY")
+
+    c.setFillColor(colors.HexColor("#aaaaaa"))
+    c.setFont("Helvetica", 10)
+    c.drawString(40, height - 56, "Premium Food Ordering Platform")
+
+    pill_x, pill_y, pill_w, pill_h = width - 120, height - 55, 80, 22
+    draw_rounded_rect(c, pill_x, pill_y, pill_w, pill_h, radius=11, fill_color=colors.HexColor("#333333"))
+    c.setFillColor(WHITE)
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(pill_x + pill_w / 2, pill_y + 7, "INVOICE")
+
+
+def draw_section_label(c, x, y, text):
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 8)
+    c.drawString(x, y, text.upper())
+
+
+def draw_info_cards(c, x, y, left_label, left_value, right_label, right_value, card_w=230, card_h=50):
+    gap = 10
+    for i, (label, value) in enumerate([(left_label, left_value), (right_label, right_value)]):
+        cx = x + i * (card_w + gap)
+        draw_rounded_rect(c, cx, y, card_w, card_h, radius=6, fill_color=LIGHT_GRAY)
+        c.setFillColor(MID_GRAY)
+        c.setFont("Helvetica", 8)
+        c.drawString(cx + 12, y + card_h - 16, label.upper())
+        c.setFillColor(DARK)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(cx + 12, y + 14, value)
+
+
+def draw_divider(c, x, y, width):
+    c.setStrokeColor(BORDER_GRAY)
+    c.setLineWidth(0.5)
+    c.line(x, y, x + width, y)
+
+
+def draw_status_pill(c, x, y, status):
+    pill_w, pill_h = 70, 18
+    draw_rounded_rect(c, x, y, pill_w, pill_h, radius=9, fill_color=GREEN_BG)
+    c.setFillColor(GREEN_TEXT)
+    c.circle(x + 12, y + 9, 3, fill=1, stroke=0)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(x + 20, y + 6, status.upper())
+
+
+def draw_items_table(c, x, y, items, usable_width):
+    table_data = [["Item", "Qty", "Price"]]
+    for item in items:
+        table_data.append([
+            item.food.food_name,
+            str(item.quantity),
+            f"Rs. {item.price * item.quantity:.2f}",
+        ])
+
+    col_widths = [usable_width - 120, 60, 60]
+    tbl = Table(table_data, colWidths=col_widths)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0),  LIGHT_GRAY),
+        ("TEXTCOLOR",     (0, 0), (-1, 0),  MID_GRAY),
+        ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica"),
+        ("FONTSIZE",      (0, 0), (-1, 0),  8),
+        ("TOPPADDING",    (0, 0), (-1, 0),  8),
+        ("BOTTOMPADDING", (0, 0), (-1, 0),  8),
+        ("LEFTPADDING",   (0, 0), (0, 0),   10),
+        ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE",      (0, 1), (-1, -1), 11),
+        ("TEXTCOLOR",     (0, 1), (-1, -1), DARK),
+        ("FONTNAME",      (0, 1), (0, -1),  "Helvetica-Bold"),
+        ("TOPPADDING",    (0, 1), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 10),
+        ("LEFTPADDING",   (0, 1), (0, -1),  10),
+        ("ALIGN",         (2, 0), (2, -1),  "RIGHT"),
+        ("ALIGN",         (1, 0), (1, -1),  "CENTER"),
+        ("LINEBELOW",     (0, 0), (-1, -2), 0.5, BORDER_GRAY),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [WHITE, LIGHT_GRAY]),
+    ]))
+
+    tbl_w, tbl_h = tbl.wrap(usable_width, 400)
+    tbl.drawOn(c, x, y - tbl_h)
+    return tbl_h
+
+
+def draw_total_block(c, x, y, total, usable_width):
+    draw_rounded_rect(c, x, y, usable_width, 50, radius=8, fill_color=LIGHT_GRAY)
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 10)
+    c.drawString(x + 16, y + 18, "Total amount")
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", 18)
+    c.drawRightString(x + usable_width - 16, y + 14, f"Rs. {total:.2f}")
+
+
+def draw_footer(c, width, margin):
+    draw_divider(c, margin, 70, width - 2 * margin)
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin, 50, "Thank you for your order!")
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 9)
+    c.drawString(margin, 35, "We hope you enjoy your meal.")
+
+
+
+@login_required
+def download_invoice(request, order_id):
+    order = get_object_or_404(Order, uid=order_id, user=request.user)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="invoice_{order.uid}.pdf"'
+
+    page_w, page_h = A4
+    margin = 40
+    usable_w = page_w - 2 * margin
+
+    c = canvas.Canvas(response, pagesize=A4)
+    c.setTitle(f"Eatify Invoice - {order.uid}")
+
+    draw_header(c, page_w, page_h, order)
+
+    cursor = page_h - 100
+
+    draw_section_label(c, margin, cursor, "Customer")
+    cursor -= 14
+    draw_info_cards(
+        c, margin, cursor - 50,
+        "Name", order.user.username,
+        "Phone", order.phone,
+        card_w=(usable_w - 10) / 2,
+    )
+    cursor -= 68
+
+    draw_divider(c, margin, cursor, usable_w)
+    cursor -= 20
+
+    draw_section_label(c, margin, cursor, "Order details")
+    cursor -= 18
+
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 8)
+    c.drawString(margin, cursor, "ORDER ID")
+    cursor -= 14
+    c.setFillColor(DARK)
+    c.setFont("Courier", 9)
+    c.drawString(margin, cursor, str(order.uid))
+    cursor -= 22
+
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, cursor, "Date")
+    c.setFillColor(DARK)
+    c.setFont("Helvetica", 10)
+    c.drawRightString(margin + usable_w, cursor, order.created_at.strftime("%d %b %Y · %I:%M %p"))
+    cursor -= 22
+
+    c.setFillColor(MID_GRAY)
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, cursor, "Status")
+    draw_status_pill(c, margin + usable_w - 70, cursor - 4, order.status)
+    cursor -= 28
+
+    draw_divider(c, margin, cursor, usable_w)
+    cursor -= 20
+
+    draw_section_label(c, margin, cursor, "Ordered items")
+    cursor -= 14
+
+    items_h = draw_items_table(c, margin, cursor, list(order.items.all()), usable_w)
+    cursor -= items_h + 20
+
+    draw_total_block(c, margin, cursor - 50, float(order.total_price), usable_w)
+
+    draw_footer(c, page_w, margin)
+
+    c.save()
+    return response
 
 # Authentication (Login/Register/Logout)
 def eatify_login(request):
@@ -331,6 +637,77 @@ def eatify_login(request):
         else:
             messages.error(request, "Invalid credentials")
     return render(request, "login.html")
+
+@login_required
+def admin_dashboard(request):
+
+    if not request.user.is_superuser:
+        messages.error(
+            request,
+            "Access Denied"
+        )
+        return redirect("eatify_home")
+
+    total_orders = Order.objects.count()
+
+    total_users = User.objects.count()
+
+    total_revenue = (
+        Order.objects
+        .filter(is_paid=True)
+        .aggregate(
+            total=Sum("total_price")
+        )["total"]
+        or 0
+    )
+
+    recent_orders = (
+        Order.objects
+        .select_related("user")
+        .order_by("-created_at")[:5]
+    )
+    top_foods = (
+    OrderItem.objects
+    .values("food__food_name")
+    .annotate(
+        total_sold=Sum("quantity")
+    )
+    .order_by("-total_sold")[:5]
+)
+    pending_orders = Order.objects.filter(
+    status="PENDING"
+).count()
+
+    confirmed_orders = Order.objects.filter(
+    status="CONFIRMED"
+).count()
+
+    delivered_orders = Order.objects.filter(
+    status="DELIVERED"
+).count()
+
+    cancelled_orders = Order.objects.filter(
+    status="CANCELLED"
+).count()
+
+    return render(
+        request,
+        "admin_dashboard.html",
+        {
+            "total_orders": total_orders,
+            "total_users": total_users,
+            "total_revenue": total_revenue,
+            "recent_orders": recent_orders,
+            "top_foods":top_foods,
+
+            "pending_orders": pending_orders,
+            "confirmed_orders": confirmed_orders,
+            "delivered_orders": delivered_orders,
+            "cancelled_orders": cancelled_orders,
+        }
+    )
+
+from django.db.models import Count
 
 def eatify_register(request):
     if request.method == "POST":
