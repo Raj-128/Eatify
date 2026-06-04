@@ -15,8 +15,6 @@ __pycache__/
 env/
 venv/
 
-# SQLite DB (optional)
-*.sqlite3
 
 # Media files (optional)
 media/
