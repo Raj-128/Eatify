@@ -20,3 +20,6 @@ venv/
 
 # Media files (optional)
 media/
+
+# Production static files
+staticfiles/

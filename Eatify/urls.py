@@ -2,7 +2,7 @@ from django.urls import path
 from .views import *
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views   # ← IMPORTANT
+from django.contrib.auth import views as auth_views  
 
 urlpatterns = [
     path('', home, name='eatify_home'),
@@ -55,8 +55,6 @@ urlpatterns = [
     path('reset/done/', 
          auth_views.PasswordResetCompleteView.as_view(template_name="reset_password_complete.html"), 
          name='password_reset_complete'),
-
-    #path("cashfree/webhook/", cashfree_webhook, name="cashfree_webhook"),
 ]
 
 if settings.DEBUG:
