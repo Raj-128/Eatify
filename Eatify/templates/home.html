@@ -3,52 +3,49 @@
 {% block title %}Home | Eatify{% endblock %}
 
 {% block content %}
-<form method="GET" action="{% url 'eatify_home' %}" class="container mt-3">
-    <div class="row justify-content-center">
-      <div class="col-12 col-sm-10 col-md-8 col-lg-6">
-        <div class="input-group">
-          <input 
-            type="text" 
-            name="q" 
-            class="form-control rounded-start" 
-            placeholder="Search delicious food..." 
-            value="{{ query }}"
-          />
-          <button class="btn btn-success rounded-end" type="submit">🔍</button>
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mt-3 mb-4">
+    <h2 class="mb-0">🍽️ Welcome to Eatify!</h2>
+
+    <form method="GET" action="{% url 'eatify_home' %}" class="flex-grow-1" style="max-width: 640px;">
+        <div class="input-group input-group-lg">
+            <input
+                type="text"
+                name="q"
+                class="form-control rounded-start-pill"
+                placeholder="Search delicious food..."
+                value="{{ query }}"
+            />
+            <button class="btn btn-success rounded-end-pill px-4" type="submit">🔍</button>
         </div>
-      </div>
-    </div>
-  </form>
- 
+    </form>
+</div>
 
-<h2 class="text-center mb-4">🍽️ Welcome to Eatify!</h2>
-
-<!-- Food Cards -->
-<div class="row">
+<!-- Food Cards: 1 per row on phones, up to 5 on very wide screens -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 row-cols-xxl-5 g-4">
     {% for food in foods %}
-        <div class="col-md-4">
-            <div class="card mb-4 shadow-sm">
+        <div class="col">
+            <div class="card food-card h-100 shadow-sm">
                 {% if food.images.first %}
-                <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.images.first.food_image.url }}">
+                <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.food_name }}">
                 {% endif %}
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <h5 class="card-title">{{ food.food_name }}</h5>
                     <div class="mb-2">
-    {% if food.avg_rating %}
-        <span class="text-warning fw-bold">
-            ⭐ {{ food.avg_rating|floatformat:1 }}
-        </span>
-        <small class="text-muted">
-            ({{ food.review_count }} Reviews)
-        </small>
-    {% else %}
-        <small class="text-muted">
-            No Reviews Yet
-        </small>
-    {% endif %}
-</div>
-                    <p class="card-text">{{ food.food_description|truncatechars:100 }}</p>
-                    <p><strong>₹{{ food.food_price }}</strong> <del class="text-muted">₹{{ food.food_demo_price }}</del></p>
+                        {% if food.avg_rating %}
+                            <span class="text-warning fw-bold">
+                                ⭐ {{ food.avg_rating|floatformat:1 }}
+                            </span>
+                            <small class="text-muted">
+                                ({{ food.review_count }} Reviews)
+                            </small>
+                        {% else %}
+                            <small class="text-muted">
+                                No Reviews Yet
+                            </small>
+                        {% endif %}
+                    </div>
+                    <p class="card-text text-muted">{{ food.food_description|truncatechars:100 }}</p>
+                    <p class="mt-auto"><strong class="fs-5">₹{{ food.food_price }}</strong> <del class="text-muted">₹{{ food.food_demo_price }}</del></p>
                     <a href="{% url 'food_detail' food.food_slug %}" class="btn btn-primary w-100">View Dish</a>
                 </div>
             </div>

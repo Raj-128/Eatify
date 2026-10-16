@@ -113,6 +113,46 @@ body {
 .food-img:hover {
     transform: scale(1.02);
 }
+
+/* ---------- Full-width layout ---------- */
+.page-wrap {
+    padding: 0 clamp(12px, 3vw, 48px) 48px;
+}
+
+.food-card {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.food-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15) !important;
+}
+
+.food-card .food-img,
+.food-card .card-img-top {
+    height: 220px;
+    object-fit: cover;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.food-detail-img {
+    width: 100%;
+    height: clamp(260px, 40vw, 480px);
+    object-fit: cover;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.panel {
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: clamp(16px, 2vw, 28px);
+}
 /* Eatify logo – primary focus */
 .navbar-logo {
     font-size: 1.9rem;
@@ -178,7 +218,7 @@ body {
 
 <!-- 🧊 Premium Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark navbar-premium fixed-top">
-    <div class="container">
+    <div class="container-fluid page-wrap py-0">
         <div class="d-flex align-items-center gap-3">
             <!-- Brand -->
             <a class="navbar-brand fw-bold" href="{% url 'eatify_home' %}">
@@ -230,8 +270,8 @@ body {
     </div>
 </nav>
 
-<!-- 📦 Page Content -->
-<div class="container">
+<!-- 📦 Page Content (full width) -->
+<div class="container-fluid page-wrap">
     {% block content %}{% endblock %}
 </div>
 <!-- Bootstrap JS -->

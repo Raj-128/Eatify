@@ -3,85 +3,89 @@
 {% block title %}{{ food.food_name }} | Eatify{% endblock %}
 
 {% block content %}
-<a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mb-3">← Back</a>
+<a href="{% url 'eatify_home' %}" class="btn btn-outline-secondary mt-3 mb-4">← Back</a>
 
-<div class="row">
-    <div class="col-md-6">
-        <img src="{{ food.images.first.food_image.url }}" class="food-img" alt="{{ food.food_name }}">
+<div class="row g-4 g-xl-5 align-items-center">
+    <div class="col-lg-6 col-xl-7">
+        <img src="{{ food.images.first.food_image.url }}" class="food-detail-img" alt="{{ food.food_name }}">
     </div>
-    <div class="col-md-6">
-        <h2>{{ food.food_name }}</h2>
-        <p>{{ food.food_description }}</p>
-        <h4>
-            Price: ₹{{ food.food_price }}
-            <del class="text-muted">₹{{ food.food_demo_price }}</del>
-        </h4>
+    <div class="col-lg-6 col-xl-5">
+        <div class="panel">
+            <h2 class="fw-bold">{{ food.food_name }}</h2>
+            <p class="text-muted fs-5">{{ food.food_description }}</p>
+            <h3 class="my-3">
+                ₹{{ food.food_price }}
+                <del class="text-muted fs-5">₹{{ food.food_demo_price }}</del>
+            </h3>
 
-        <!-- Wishlist toggle -->
-        {% if food in wishlist_items %}
-            <a href="{% url 'remove_from_wishlist' food.uid %}" class="btn btn-danger mt-2">❤️ Remove from Wishlist</a>
-        {% else %}
-            <a href="{% url 'add_to_wishlist' food.uid %}" class="btn btn-outline-danger mt-2">🤍 Add to Wishlist</a>
-        {% endif %}
+            <div class="d-flex flex-wrap gap-2">
+                <!-- Add to cart -->
+                <form action="{% url 'add_to_cart' food.uid %}" method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-success btn-lg">Add to Cart 🛒</button>
+                </form>
 
-        <!-- Add to cart -->
-        <form action="{% url 'add_to_cart' food.uid %}" method="post" class="mt-3">
+                <!-- Wishlist toggle -->
+                {% if food in wishlist_items %}
+                    <a href="{% url 'remove_from_wishlist' food.uid %}" class="btn btn-danger btn-lg">❤️ Remove from Wishlist</a>
+                {% else %}
+                    <a href="{% url 'add_to_wishlist' food.uid %}" class="btn btn-outline-danger btn-lg">🤍 Add to Wishlist</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews (left) + Add Review (right) -->
+<div class="row g-4 mt-4">
+    <div class="col-lg-7">
+        <h3>Reviews</h3>
+        {% for review in reviews %}
+            <div class="panel mb-3">
+                <strong>{{ review.user.username }}</strong> - ⭐ {{ review.rating }}
+                <p class="mb-1">{{ review.comment }}</p>
+                <small class="text-muted">{{ review.created_at|date:"d M Y H:i" }}</small>
+            </div>
+        {% empty %}
+            <p>No reviews yet. Be the first to review!</p>
+        {% endfor %}
+    </div>
+
+    <div class="col-lg-5">
+        <form action="{% url 'add_review' food.uid %}" method="post" class="panel">
             {% csrf_token %}
-            <button class="btn btn-success">Add to Cart 🛒</button>
+            <h5 class="mb-3">Write a Review</h5>
+            <div class="mb-3">
+                <label for="rating" class="form-label">Rating</label>
+                <select name="rating" id="rating" class="form-select" required>
+                    <option value="">--Select Rating--</option>
+                    {% for i in "12345" %}
+                        <option value="{{ i }}">{{ i }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="comment" class="form-label">Comment</label>
+                <textarea name="comment" id="comment" class="form-control" rows="3" placeholder="Write your thoughts..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Submit Review</button>
         </form>
     </div>
 </div>
 
-<hr>
+<h4 class="mt-5 mb-3">🍔 You May Also Like</h4>
 
-<!-- Review Section -->
-<h3 class="mt-5">Reviews</h3>
-
-{% for review in reviews %}
-    <div class="border p-3 mb-3 rounded">
-        <strong>{{ review.user.username }}</strong> - ⭐ {{ review.rating }}
-        <p>{{ review.comment }}</p>
-        <small class="text-muted">{{ review.created_at|date:"d M Y H:i" }}</small>
-    </div>
-{% empty %}
-    <p>No reviews yet. Be the first to review!</p>
-{% endfor %}
-
-<!-- Add Review Form -->
-<form action="{% url 'add_review' food.uid %}" method="post" class="mt-4">
-    {% csrf_token %}
-    <div class="mb-2">
-        <label for="rating">Rating</label>
-        <select name="rating" class="form-control" required>
-            <option value="">--Select Rating--</option>
-            {% for i in "12345" %}
-                <option value="{{ i }}">{{ i }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="mb-2">
-        <label for="comment">Comment</label>
-        <textarea name="comment" class="form-control" rows="3" placeholder="Write your thoughts..."></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">Submit Review</button>
-</form>
-<hr>
-
-<h4 class="mb-3">🍔 You May Also Like</h4>
-
-<div class="row">
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 row-cols-xxl-6 g-4">
     {% for item in recommended_foods %}
-        <div class="col-md-3">
-            <div class="card mb-3 shadow-sm">
+        <div class="col">
+            <div class="card food-card h-100 shadow-sm">
                 {% if item.images.first %}
-                    <img src="{{ item.images.first.food_image.url }}"
-                         class="card-img-top"
-                         style="height:180px;object-fit:cover;">
+                    <img src="{{ item.images.first.food_image.url }}" class="card-img-top" alt="{{ item.food_name }}">
                 {% endif %}
 
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <h6>{{ item.food_name }}</h6>
-                    <p class="fw-bold">₹{{ item.food_price }}</p>
+                    <p class="fw-bold mt-auto">₹{{ item.food_price }}</p>
 
                     <a href="{% url 'food_detail' item.food_slug %}"
                        class="btn btn-outline-primary btn-sm w-100">
