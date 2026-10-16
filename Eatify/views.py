@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.utils.http import url_has_allowed_host_and_scheme
 from .models import Food, Cart, Order, OrderItem, Category, Address, Wishlist, Review ,Coupon
 import random ,hashlib, hmac, base64
 from django.db.models import Q ,Avg, Count, Sum
@@ -633,6 +634,10 @@ def eatify_login(request):
         if user:
             login(request, user)
             request.session['show_welcome'] = True
+            # Back to the page that asked for login (e.g. a dish), only if it's on this site.
+            next_url = request.GET.get("next")
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
             return redirect('eatify_home')
         else:
             messages.error(request, "Invalid credentials")

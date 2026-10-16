@@ -57,7 +57,8 @@ EXTERNAL_APPS = [
     'Eatify',
 ]
 INSTALLED_APPS += EXTERNAL_APPS
-LOGIN_URL = '/Eatify/login/'
+# URL name, not a path: the app's routes live at the site root (/login/).
+LOGIN_URL = 'eatify_login'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
